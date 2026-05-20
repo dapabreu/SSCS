@@ -1,0 +1,425 @@
+function metrics = simulate_and_analyze_gmm(target_planes, target_gs, target_fr, sim_time_sec)
+% Generates synthetic ComNet data using a 3D interpolated GMM, fits it, and plots against empirics.
+
+    fprintf('%d PLs, %d GSs, %s FR, %d seconds\n', target_planes, target_gs, target_fr, sim_time_sec);
+    tic;
+
+    pkts_per_sec_per_plane = 2;
+    total_generated = target_planes * pkts_per_sec_per_plane * sim_time_sec;
+    
+    pl_anchors = [4, 25, 125, 225];
+    gs_anchors = [1, 3, 5];
+    frs = ["nominal", "weak", "light", "moderate", "severe"];
+    fr_idx = find(frs == target_fr, 1);
+    if isempty(fr_idx)
+        error('Invalid target_fr');
+    end
+    [X_grid, Y_grid] = meshgrid(pl_anchors, gs_anchors);
+
+    gmm_mu1 = zeros(3, 4, 5);
+    gmm_mu1(:,:,1) = [
+        23.4445, 27.4711, 28.5847, 30.6464;
+        20.1068, 22.6607, 23.6823, 24.1412;
+        22.0072, 22.4080, 22.5642, 20.3168
+    ];
+    gmm_mu1(:,:,2) = [
+        23.8862, 27.4989, 28.5094, 30.6513;
+        19.7794, 22.9874, 23.7048, 23.9556;
+        21.9227, 22.3713, 22.5642, 20.2951
+    ];
+    gmm_mu1(:,:,3) = [
+        23.7316, 27.5523, 28.9750, 30.5788;
+        20.4394, 22.9743, 23.5998, 23.4361;
+        21.9300, 22.1486, 22.8717, 20.2734
+    ];
+    gmm_mu1(:,:,4) = [
+        27.7251, 28.0189, 27.7328, 30.2864;
+        19.9658, 22.7564, 24.4873, 24.6126;
+        21.6617, 22.1605, 22.9066, 20.3607
+    ];
+    gmm_mu1(:,:,5) = [
+        27.1750, 27.5868, 29.3207, 24.8893;
+        21.7488, 23.4590, 23.3763, 24.0142;
+        22.1292, 22.3268, 22.2036, 18.8018
+    ];
+    
+    gmm_sig1 = zeros(3, 4, 5);
+    gmm_sig1(:,:,1) = [
+        3.2580, 6.3192, 7.3270, 8.6904;
+        4.2035, 5.3043, 5.6902, 6.2880;
+        5.6243, 6.1660, 5.9628, 5.7203
+    ];
+    gmm_sig1(:,:,2) = [
+        3.5270, 6.3434, 7.2513, 8.7010;
+        4.0570, 5.5857, 5.7189, 6.1445;
+        5.4508, 6.1462, 5.9561, 5.7109
+    ];
+    gmm_sig1(:,:,3) = [
+        3.4892, 6.5572, 7.9993, 8.6739;
+        4.3886, 5.6086, 5.6928, 5.8631;
+        5.5590, 5.8967, 6.2614, 5.6880
+    ];
+    gmm_sig1(:,:,4) = [
+        5.8464, 6.8468, 6.6335, 8.5506;
+        4.1761, 5.2938, 6.6319, 6.7855;
+        5.3168, 6.0259, 6.3030, 5.8131
+    ];
+    gmm_sig1(:,:,5) = [
+        5.2740, 6.5560, 8.9450, 5.4118;
+        5.2531, 6.2810, 5.9343, 6.9074;
+        7.0166, 6.2944, 6.5379, 4.4790
+    ];
+    
+    gmm_mu2 = zeros(3, 4, 5);
+    gmm_mu2(:,:,1) = [
+        29.6967, 69.0274, 90.5752, 84.5464;
+        26.7730, 33.3726, 55.3193, 44.7195;
+        60.7173, 68.5118, 74.5547, 49.1466
+    ];
+    gmm_mu2(:,:,2) = [
+        30.6360, 73.9804, 87.5127, 84.3915;
+        25.5764, 56.2275, 56.3390, 38.4089;
+        47.7639, 67.6488, 74.4771, 49.1120
+    ];
+    gmm_mu2(:,:,3) = [
+        30.7762, 84.6286, 102.8869, 84.5483;
+        26.2740, 47.8578, 54.8300, 48.8127;
+        61.5187, 60.2920, 56.0951, 47.2043
+    ];
+    gmm_mu2(:,:,4) = [
+        101.9318, 64.9428, 55.4303, 84.3891;
+        26.1292, 31.6416, 80.4547, 55.2498;
+        50.6625, 53.9462, 59.6326, 49.3023
+    ];
+    gmm_mu2(:,:,5) = [
+        51.7164, 70.7558, 59.3715, 36.5481;
+        36.9956, 47.6715, 51.5284, 61.5005;
+        121.4153, 40.7738, 64.1192, 42.5007
+    ];
+    
+    gmm_sig2 = zeros(3, 4, 5);
+    gmm_sig2(:,:,1) = [
+        5.5555, 26.4714, 22.9655, 3.9377;
+        5.5631, 11.6764, 23.3376, 14.9405;
+        31.5034, 31.5863, 29.2516, 16.9039
+    ];
+    gmm_sig2(:,:,2) = [
+        5.4055, 25.4176, 25.3165, 3.9666;
+        5.7236, 24.4696, 23.2307, 12.3756;
+        21.0456, 32.0969, 29.4556, 16.9120
+    ];
+    gmm_sig2(:,:,3) = [
+        5.5650, 35.3365, 13.0370, 3.9350;
+        6.7604, 22.5347, 23.1187, 10.0768;
+        29.4667, 29.1986, 24.4859, 16.6828
+    ];
+    gmm_sig2(:,:,4) = [
+        1.4235, 23.7298, 24.8743, 1.1340;
+        5.6182, 10.0149, 14.0355, 15.4786;
+        18.0527, 23.7974, 24.5518, 16.8277
+    ];
+    gmm_sig2(:,:,5) = [
+        17.0267, 24.9203, 26.1993, 10.7175;
+        11.9999, 22.7335, 15.8686, 27.0686;
+        15.6815, 14.0984, 26.7628, 15.7603
+    ];
+    
+    gmm_w1 = zeros(3, 4, 5);
+    gmm_w1(:,:,1) = [
+        0.3775, 0.9903, 0.9622, 0.9848;
+        0.7374, 0.9425, 0.9569, 0.9533;
+        0.9416, 0.9538, 0.8678, 0.6974
+    ];
+    gmm_w1(:,:,2) = [
+        0.4879, 0.9933, 0.9593, 0.9870;
+        0.6496, 0.9947, 0.9591, 0.9293;
+        0.9247, 0.9529, 0.8666, 0.6969
+    ];
+    gmm_w1(:,:,3) = [
+        0.4666, 0.9938, 0.9717, 0.9847;
+        0.7468, 0.9925, 0.9586, 0.9315;
+        0.9465, 0.9455, 0.8356, 0.7071
+    ];
+    gmm_w1(:,:,4) = [
+        0.9966, 0.9748, 0.8908, 0.9918;
+        0.6909, 0.8738, 0.9736, 0.9724;
+        0.9468, 0.9420, 0.9135, 0.6963
+    ];
+    gmm_w1(:,:,5) = [
+        0.9000, 0.9510, 0.9680, 0.5021;
+        0.8450, 0.9177, 0.8808, 0.9690;
+        0.9777, 0.9044, 0.9012, 0.5766
+    ];
+
+    % From extract_network_metrics.m:
+    plr_table = zeros(3, 4, 5);
+    plr_table(:,:,1) = [
+        0.000000e+00, 0.000000e+00, 7.782277e-07, 0.000000e+00;
+        1.122435e-04, 1.163078e-04, 1.354116e-04, 3.274924e-04;
+        1.174816e-03, 2.198713e-03, 2.958043e-03, 4.970636e-04
+    ];
+    plr_table(:,:,2) = [
+        6.319517e-03, 1.334006e-02, 1.505292e-02, 2.337649e-03;
+        1.463528e-02, 1.101866e-02, 1.062043e-02, 5.255282e-04;
+        8.880358e-03, 1.249542e-02, 1.887582e-02, 1.151998e-03
+    ];
+    plr_table(:,:,3) = [
+        4.606327e-02, 6.130572e-02, 7.534793e-02, 3.185262e-03;
+        3.507858e-02, 3.537404e-02, 4.727136e-02, 6.889844e-02;
+        3.401436e-02, 4.617094e-02, 4.888156e-02, 2.175306e-02
+    ];
+    plr_table(:,:,4) = [
+        1.367186e-01, 1.366199e-01, 9.375904e-02, 8.245955e-02;
+        1.164765e-01, 1.211067e-01, 1.897689e-01, 1.068660e-01;
+        1.372919e-01, 1.133828e-01, 1.175896e-01, 8.754595e-02
+    ];
+    plr_table(:,:,5) = [
+        4.389852e-01, 4.678472e-01, 4.262586e-01, 4.170415e-01;
+        4.096129e-01, 4.218379e-01, 3.867633e-01, 4.342078e-01;
+        3.657082e-01, 3.016901e-01, 4.108256e-01, 3.317100e-01
+    ];
+    
+    jitter_mu_table = zeros(3, 4, 5);
+    jitter_mu_table(:,:,1) = [
+        6.024845e+00, 6.404571e+00, 8.775653e+00, 8.566829e+00;
+        5.456135e+00, 5.676385e+00, 7.034189e+00, 6.807837e+00;
+        5.043909e+00, 5.144183e+00, 5.615876e+00, 6.468907e+00
+    ];
+    jitter_mu_table(:,:,2) = [
+        5.992923e+00, 6.344949e+00, 8.739807e+00, 8.412022e+00;
+        5.437455e+00, 5.489772e+00, 6.928850e+00, 6.604177e+00;
+        5.546327e+00, 5.140681e+00, 5.636634e+00, 6.472635e+00
+    ];
+    jitter_mu_table(:,:,3) = [
+        6.213403e+00, 6.566138e+00, 8.850427e+00, 8.533687e+00;
+        5.608923e+00, 5.507813e+00, 6.917513e+00, 7.284344e+00;
+        5.201530e+00, 5.197063e+00, 5.956520e+00, 6.360430e+00
+    ];
+    jitter_mu_table(:,:,4) = [
+        6.626341e+00, 6.699710e+00, 8.525953e+00, 7.850304e+00;
+        5.255996e+00, 5.736902e+00, 7.043535e+00, 6.825409e+00;
+        5.112525e+00, 5.356129e+00, 5.743195e+00, 6.214287e+00
+    ];
+    jitter_mu_table(:,:,5) = [
+        5.606530e+00, 6.033103e+00, 7.168965e+00, 7.358631e+00;
+        7.121708e+00, 5.854695e+00, 6.208054e+00, 5.451296e+00;
+        5.122849e+00, 5.693806e+00, 5.856002e+00, 5.573396e+00
+    ];
+    
+    ber_table = zeros(3, 4, 5);
+    ber_table(:,:,1) = [
+        1.830117e-15, 1.576164e-15, 1.361745e-15, 1.509053e-15;
+        1.830254e-15, 1.576235e-15, 1.361800e-15, 1.509086e-15;
+        1.819183e-15, 1.572632e-15, 1.363839e-15, 1.509086e-15
+    ];
+    ber_table(:,:,2) = [
+        9.014565e-10, 7.801619e-10, 1.138144e-09, 9.052819e-10;
+        6.098118e-10, 5.867829e-10, 7.735400e-10, 8.439682e-10;
+        9.899678e-10, 9.193623e-10, 6.354691e-10, 8.010471e-10
+    ];
+    ber_table(:,:,3) = [
+        4.627381e-07, 4.795011e-07, 4.881367e-07, 4.021949e-07;
+        3.655533e-07, 3.931788e-07, 3.794866e-07, 2.453044e-07;
+        3.008533e-07, 3.039735e-07, 3.880737e-07, 3.012283e-07
+    ];
+    ber_table(:,:,4) = [
+        8.132572e-07, 1.121261e-06, 1.312422e-06, 7.827791e-07;
+        6.061133e-07, 8.192329e-07, 7.910749e-07, 6.771946e-07;
+        5.452409e-07, 5.929028e-07, 6.267957e-07, 6.817529e-07
+    ];
+    ber_table(:,:,5) = [
+        9.136367e-04, 1.087966e-03, 8.123634e-04, 1.462138e-03;
+        7.697644e-04, 7.819015e-04, 7.917664e-04, 1.717980e-03;
+        5.898786e-04, 8.695415e-04, 7.903284e-04, 5.066891e-04
+    ];
+    
+    ber_std_table = zeros(3, 4, 5);
+    ber_std_table(:,:,1) = [
+        6.460451e-15, 5.891211e-15, 5.188236e-15, 5.408224e-15;
+        6.460783e-15, 5.891470e-15, 5.188336e-15, 5.408258e-15;
+        6.440121e-15, 5.883179e-15, 5.191791e-15, 5.408465e-15
+    ];
+    ber_std_table(:,:,2) = [
+        7.926566e-10, 5.810718e-10, 1.152866e-09, 4.425670e-10;
+        5.097248e-10, 3.704694e-10, 6.116410e-10, 5.678628e-10;
+        9.578622e-10, 1.039406e-09, 4.495342e-10, 4.604542e-10
+    ];
+    ber_std_table(:,:,3) = [
+        4.208485e-07, 4.444191e-07, 4.576293e-07, 4.745466e-07;
+        3.134779e-07, 3.514745e-07, 3.011441e-07, 2.076748e-07;
+        2.697812e-07, 3.092039e-07, 3.463655e-07, 2.858047e-07
+    ];
+    ber_std_table(:,:,4) = [
+        6.584361e-07, 6.992083e-07, 8.805253e-07, 4.222800e-07;
+        4.006223e-07, 5.919702e-07, 8.447974e-07, 6.553158e-07;
+        4.343839e-07, 4.302758e-07, 4.544559e-07, 6.232331e-07
+    ];
+    ber_std_table(:,:,5) = [
+        4.537505e-04, 7.947284e-04, 4.766672e-04, 5.893275e-04;
+        4.978633e-04, 5.277620e-04, 7.132401e-04, 1.682481e-03;
+        6.470840e-04, 7.480816e-04, 9.937934e-04, 4.541196e-04
+    ];
+
+    % 2D Interpolation (makima):
+    p_mu1 = interp2(X_grid, Y_grid, gmm_mu1(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_sig1 = interp2(X_grid, Y_grid, gmm_sig1(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_mu2 = interp2(X_grid, Y_grid, gmm_mu2(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_sig2 = interp2(X_grid, Y_grid, gmm_sig2(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_w1 = interp2(X_grid, Y_grid, gmm_w1(:,:,fr_idx), target_planes, target_gs, 'makima');
+
+    p_plr = interp2(X_grid, Y_grid, plr_table(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_jitter = interp2(X_grid, Y_grid, jitter_mu_table(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_ber = interp2(X_grid, Y_grid, ber_table(:,:,fr_idx), target_planes, target_gs, 'makima');
+    p_ber_std = interp2(X_grid, Y_grid, ber_std_table(:,:,fr_idx), target_planes, target_gs, 'makima');
+
+    % Clamp bounds:
+    p_plr = max(0, min(1, p_plr));
+    p_w1 = max(0, min(1, p_w1));
+
+    % Generate synthetic data:
+    is_lost = rand(total_generated, 1) < p_plr;
+    num_received = sum(~is_lost);
+    
+    lat_ms = NaN(total_generated, 1);
+    jit_ms = NaN(total_generated, 1);
+    ber = NaN(total_generated, 1);
+    
+    % Choose component:
+    comp_choice = rand(num_received, 1) < p_w1;
+    lat_comp1 = p_mu1 + p_sig1 * randn(num_received, 1);
+    lat_comp2 = p_mu2 + p_sig2 * randn(num_received, 1);
+    
+    lat_ms(~is_lost) = comp_choice .* lat_comp1 + (~comp_choice) .* lat_comp2;
+    lat_ms(~is_lost) = max(2.0, lat_ms(~is_lost));
+    jit_ms(~is_lost) = exprnd(p_jitter, [num_received, 1]);
+    
+    % BER Processing:
+    if num_received > 0
+        v = p_ber_std^2;
+        m = max(p_ber, 1e-15);
+        mu_log = log(m^2 / sqrt(v + m^2));
+        sig_log = sqrt(log(v/m^2 + 1));
+        synth_ber = lognrnd(mu_log, sig_log, num_received, 1);
+        baseline_ber = 1.5e-15;
+        ber(~is_lost) = min(1.0, max(baseline_ber, synth_ber));
+    end
+    
+    status = cell(total_generated, 1);
+    status(~is_lost) = {'Received'};
+    status(is_lost) = {'Lost'};
+
+    % Save dataset:
+    if ~exist('synth_csv_data', 'dir'), mkdir('synth_csv_data'); end
+    synth_filename = sprintf('synth_csv_data/synthetic_gmm_%dgs_%dpl_%s.csv', target_gs, target_planes, target_fr);
+    T_synth = table(lat_ms, jit_ms, ber, string(status), 'VariableNames', {'Latency_ms', 'Jitter_ms', 'BER', 'Status'});
+    writetable(T_synth, synth_filename);
+
+    % Analysis & Console Output:
+    synth_rx_latencies = lat_ms(~is_lost);
+    metrics = struct();
+    metrics.mean_lat = mean(synth_rx_latencies);
+    metrics.p99_lat = prctile(synth_rx_latencies, 99);
+    metrics.p99_jit = prctile(jit_ms(~is_lost), 99);
+    metrics.plr = (sum(is_lost) / total_generated) * 100;
+    
+    options = statset('MaxIter', 500);
+    gmm_fit = fitgmdist(synth_rx_latencies, 2, 'Options', options);
+    
+    fprintf('\nSynthetic Metrics:\n');
+    fprintf('\tPLR:              %.2f%%\n', metrics.plr);
+    fprintf('\tMean latency:     %.2f ms\n', metrics.mean_lat);
+    fprintf('\t99th latency:     %.2f ms\n', metrics.p99_lat);
+
+    % Visualization:
+    filename = sprintf('./csv_data/%dgs-%dpl-%s_data.csv', target_gs, target_planes, target_fr);
+    
+    if isfile(filename)
+        empirical_filename = filename;
+        has_empirical = true;
+    else
+        has_empirical = false;
+        emp_plr = NaN;
+    end
+    figure('Name', sprintf('GMM Analysis: %dGS, %dPL, %s FR', target_gs, target_planes, target_fr), 'Position', [100, 100, 1600, 900]);
+   
+    % Latency Distribution:
+    subplot(2, 2, 1);
+    histogram(synth_rx_latencies, 150, 'Normalization', 'pdf', 'FaceColor', '#0072BD', 'EdgeColor', 'none', 'DisplayName', 'Synthetic Data');
+    hold on;
+    if has_empirical
+        emp_data = readtable(empirical_filename);
+        if isnumeric(emp_data.Status)
+            emp_rx_mask = (emp_data.Status == 0);
+        else
+            emp_rx_mask = strcmp(string(emp_data.Status), 'Received') | strcmp(string(emp_data.Status), '0');
+        end
+        emp_latencies = emp_data.Latency_ms(emp_rx_mask);
+        
+        total_emp = height(emp_data);
+        lost_emp = sum(~emp_rx_mask);
+        emp_plr = (lost_emp / total_emp) * 100;
+        
+        histogram(emp_latencies, 150, 'Normalization', 'pdf', 'FaceColor', '#D95319', 'FaceAlpha', 0.5, 'EdgeColor', 'none', 'DisplayName', 'Empirical Data');
+    end
+    
+    % Plot GMM Fit curve:
+    x_range = linspace(min(synth_rx_latencies), max(synth_rx_latencies), 200)';
+    plot(x_range, pdf(gmm_fit, x_range), 'r-', 'LineWidth', 2, 'DisplayName', '2-Comp GMM Fit');
+    title(sprintf('Bimodal Latency Distribution (%d GS, %d PL, %s FR)', target_gs, target_planes, target_fr));
+    xlabel('Latency (ms)'); ylabel('PDF'); legend('Location', 'northeast'); grid on;
+
+    % Jitter CDF:
+    subplot(2, 2, 2);
+    histogram(jit_ms(~is_lost), 150, 'Normalization', 'cdf', 'FaceColor', '#0072BD', 'DisplayName', 'Synthetic Jitter'); hold on;
+    if has_empirical
+        histogram(emp_data.Jitter_ms(emp_rx_mask), 150, 'Normalization', 'cdf', 'FaceColor', '#D95319', 'FaceAlpha', 0.5, 'DisplayName', 'Empirical Jitter');
+    end
+    yline(0.99, 'r--', '99th Percentile', 'HandleVisibility', 'off');
+    title('CDF of ToA Jitter'); xlabel('Jitter (ms)'); ylabel('Cumulative Probability');
+    xlim([0, metrics.p99_jit * 1.5]); legend('Location', 'southeast'); grid on;
+
+    % PLR Bar Plot:
+    subplot(2, 2, 3);
+    if has_empirical
+        b = bar([metrics.plr, emp_plr], 'FaceColor', 'flat');
+        b.CData(1,:) = [0, 0.4470, 0.7410];
+        b.CData(2,:) = [0.8500, 0.3250, 0.0980];
+        set(gca, 'XTickLabel', {'Synthetic', 'Empirical'});
+        ylabel('Packet Loss Rate (%)');
+        title(sprintf('PLR Comparison (Target PLR: %.2f%%)', p_plr * 100));
+        text(1, metrics.plr, sprintf('%.2f%%', metrics.plr), 'Vert', 'bottom', 'Horiz', 'center', 'FontWeight', 'bold');
+        text(2, emp_plr, sprintf('%.2f%%', emp_plr), 'Vert', 'bottom', 'Horiz', 'center', 'FontWeight', 'bold');
+    else
+        b = bar(metrics.plr, 'FaceColor', 'flat');
+        b.CData(1,:) = [0, 0.4470, 0.7410];
+        set(gca, 'XTickLabel', {'Synthetic'});
+        ylabel('Packet Loss Rate (%)');
+        title(sprintf('Synthetic PLR (Target PLR: %.2f%%)', p_plr * 100));
+        text(1, metrics.plr, sprintf('%.2f%%', metrics.plr), 'Vert', 'bottom', 'Horiz', 'center', 'FontWeight', 'bold');
+    end
+    ylim([0, max([metrics.plr, emp_plr]) * 1.2]);
+    grid on;
+
+    % BER Distribution:
+    subplot(2, 2, 4);
+    if num_received > 0
+        min_ber = min(ber(~is_lost));
+        max_ber = max(ber(~is_lost));
+        if min_ber <= 0, min_ber = 1e-15; end
+        edges = logspace(log10(min_ber), log10(max_ber), 50);
+        
+        histogram(ber(~is_lost), edges, 'Normalization', 'pdf', 'FaceColor', '#77AC30', 'EdgeColor', 'none', 'DisplayName', 'Synthetic BER'); hold on;
+        if has_empirical
+            emp_ber = emp_data.BER(emp_rx_mask);
+            emp_ber = emp_ber(emp_ber > 0);
+            histogram(emp_ber, edges, 'Normalization', 'pdf', 'FaceColor', '#A2142F', 'FaceAlpha', 0.5, 'EdgeColor', 'none', 'DisplayName', 'Empirical BER');
+        end
+    end
+    title('Bit Error Rate (BER)');
+    xlabel('BER');
+    ylabel('PDF (Log Scale)');
+    set(gca, 'XScale', 'log', 'YScale', 'log');
+    legend('Location', 'northeast'); grid on;
+
+    fprintf('\nGMM Pipeline completed in %.2f seconds.\n', toc);
+end
