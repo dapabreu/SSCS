@@ -395,7 +395,7 @@ classdef basic_statistics_t < custom_statistics_t
                         'VariableNames', {'Latency_ms', 'Jitter_ms', 'Hops', 'BER', 'Status'});
                     
                     % Get path:
-                    csv_path = sprintf("%s%dgs-%dpl-%s_data.csv", sim.config.stats_dir, sim.config.total_grounds, sim.config.total_planes, sim.config.failure_scenario);
+                    csv_path = sprintf("%s%dgs-%ddl-%dpl-%s_data.csv", sim.config.stats_dir, sim.config.total_grounds, sim.config.total_downlinks, sim.config.total_planes, sim.config.failure_scenario);
                     
                     % Append to existing file without rewriting headers:
                     if isfile(csv_path)
